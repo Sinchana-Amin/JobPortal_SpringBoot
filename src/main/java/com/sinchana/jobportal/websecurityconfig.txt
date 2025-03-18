@@ -1,0 +1,59 @@
+@Configuration
+public class WebSecurityConfig {
+
+    private final CustomUserDetailsService customUserDetailsService;
+    private final CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+
+    private final String[] publicUrl = {"/",
+            "/global-search/**",
+            "/register",
+            "/register/**",
+            "/webjars/**",
+            "/resources/**",
+            "/assets/**",
+            "/css/**",
+            "/summernote/**",
+            "/js/**",
+            "/*.css",
+            "/*.js",
+            "/*.js.map",
+            "/fonts**", "/favicon.ico", "/resources/**", "/error"};
+
+    public WebSecurityConfig(CustomUserDetailsService customUserDetailsService, CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
+        this.customUserDetailsService = customUserDetailsService;
+        this.customAuthenticationSuccessHandler = customAuthenticationSuccessHandler;
+    }
+
+    @Bean
+    protected SecurityFilterChain securityFilterChain(HttpSecurity http)throws Exception{
+        http.authenticationProvider(authenticationProvider());
+        http.authorizeHttpRequests(
+                auth->{
+                    auth.requestMatchers(publicUrl).permitAll();
+                    auth.anyRequest().authenticated();
+                }
+        );
+        http.formLogin(form-> form.loginPage("/login").permitAll().successHandler(customAuthenticationSuccessHandler))
+                .logout(logout->{
+                    logout.logoutUrl("/logout");
+                    logout.logoutSuccessUrl("/");
+                }).cors(Customizer.withDefaults())
+                .csrf(csrf->csrf.disable());
+        return http.build();
+    }
+
+    /* Need to tell spring security how to find our users and how to authenticate passwords*/
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+        //telling SS how to retrieve the users from DB
+        authenticationProvider.setUserDetailsService(customUserDetailsService);
+        return authenticationProvider;
+    }
+
+    //Telling spring security how to authenticate passwords(plain texts or encryption)
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
